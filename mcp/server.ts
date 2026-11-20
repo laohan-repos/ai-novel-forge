@@ -99,7 +99,7 @@ const tools = [
   {
     name: "delete_novel",
     description:
-      "从书架删除一本小说，并同时删除它的世界观、人物档案、剧情大纲和小说记忆。作者明确说出要删除的书名之后再调用。用 novelId 或 title 指定，不会默认删除当前小说。书架上的最后一本不能删除。",
+      "从书架删除一本小说，并同时删除它的正文、世界观、人物档案、剧情大纲和小说记忆。作者明确说出要删除的书名之后再调用。用 novelId 或 title 指定，不会默认删除当前小说。书架上的最后一本不能删除。",
     inputSchema: {
       type: "object",
       properties: {
@@ -740,7 +740,7 @@ function callTool(name: string, args: Record<string, unknown>) {
       deleted: true,
       novel: result.novel,
       currentId: result.catalog.currentId,
-      message: `《${result.novel.title}》已从书架删除，世界观、人物档案、剧情大纲和小说记忆也已清除。`,
+      message: `《${result.novel.title}》已从书架删除，正文、世界观、人物档案、剧情大纲和小说记忆也已清除。`,
     });
   }
   const novelId = novelIdOf(args);

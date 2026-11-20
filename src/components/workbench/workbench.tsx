@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { seedCatalog, type NovelCatalog, type NovelRecord } from "@/lib/novels/model";
 import { Characters } from "./characters";
+import { ManuscriptEditor, WritingResume } from "./manuscript-editor";
 import { NovelMemory } from "./novel-memory";
 import { NovelOutline } from "./novel-outline";
 import { Worldview } from "./worldview";
 import {
   IconBell,
   IconBookMark,
-  IconChevron,
   IconDots,
   IconGlobe,
   IconHome,
@@ -18,7 +18,6 @@ import {
   IconNovel,
   IconNovelSolid,
   IconPen,
-  IconPencil,
   IconPerson,
   IconPlot,
   IconPlus,
@@ -32,6 +31,8 @@ import {
 } from "./icons";
 
 type TabId = "home" | "novels" | "write" | "memory" | "me";
+type NovelScreen = "outline" | "world" | "characters" | "memory";
+type OpenManuscript = { novelId: string; chapterId: string };
 
 const modules = [
   { title: "世界观设定", subtitle: "68 项", icon: IconGlobe },
@@ -50,6 +51,12 @@ const tabs: { id: TabId; label: string; icon: typeof IconHome }[] = [
   { id: "me", label: "我的", icon: IconUser },
 ];
 
+const novelLinks = [
+  { id: "world", label: "世界观设定", icon: IconGlobe },
+  { id: "characters", label: "人物档案", icon: IconPerson },
+  { id: "outline", label: "剧情大纲", icon: IconPlot },
+] as const;
+
 const coverArt = {
   novel: NovelCover,
   star: StarSeaCover,
@@ -58,10 +65,13 @@ const coverArt = {
 
 export function Workbench() {
   const [tab, setTab] = useState<TabId>("home");
-  const [screen, setScreen] = useState<"main" | "outline" | "world" | "characters" | "memory">("main");
-  const [worldBack, setWorldBack] = useState<"main" | "outline">("main");
+  const [screen, setScreen] = useState<"main" | NovelScreen>("main");
   const [catalog, setCatalog] = useState<NovelCatalog>(seedCatalog);
+  const [catalogReady, setCatalogReady] = useState(false);
   const [openedId, setOpenedId] = useState(seedCatalog.currentId);
+  const [outlineAtChapters, setOutlineAtChapters] = useState(false);
+  const [editor, setEditor] = useState<OpenManuscript | null>(null);
+  const [editorDirty, setEditorDirty] = useState(false);
   const [arrival, setArrival] = useState<NovelRecord | null>(null);
   const [worldTotal, setWorldTotal] = useState<number | null>(null);
   const [castTotal, setCastTotal] = useState<number | null>(null);
@@ -75,6 +85,14 @@ export function Workbench() {
     catalog.novels.find((novel) => novel.id === catalog.currentId) ?? catalog.novels[0];
   const opened = catalog.novels.find((novel) => novel.id === openedId) ?? current;
 
+  const showNewNovel = useEffectEvent((created: NovelRecord) => {
+    if (editor) return;
+    setOpenedId(created.id);
+    setOutlineAtChapters(false);
+    setScreen("outline");
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) setArrival(created);
+  });
+
   useEffect(() => {
     let stopped = false;
     async function refresh() {
@@ -87,6 +105,7 @@ export function Workbench() {
         if (next.revision < catalogRevision.current) return;
         catalogRevision.current = next.revision;
         setCatalog(next);
+        setCatalogReady(true);
         if (!next.novels.some((novel) => novel.id === openedIdRef.current)) {
           setOpenedId(next.currentId);
           setScreen("main");
@@ -97,11 +116,7 @@ export function Workbench() {
         }
         const created = next.novels.find((novel) => !seenIds.current?.has(novel.id));
         for (const novel of next.novels) seenIds.current.add(novel.id);
-        if (!created) return;
-        setOpenedId(created.id);
-        setScreen("outline");
-        const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        if (!reduceMotion) setArrival(created);
+        if (created) showNewNovel(created);
       } catch {
         // Keep the shelf on screen if the file is briefly locked.
       }
@@ -222,25 +237,33 @@ export function Workbench() {
     }
   }
 
-  function openOutline(id: string) {
-    void focusNovel(id);
-    setScreen("outline");
+  function leaveEditor() {
+    if (editorDirty && !window.confirm("当前章节还有未保存的修改。确定离开吗？")) return false;
+    setEditor(null);
+    setEditorDirty(false);
+    return true;
   }
 
-  function openWorld(from: "main" | "outline", id: string) {
-    void focusNovel(id);
-    setWorldBack(from);
-    setScreen("world");
+  function openEditor(novelId: string, chapterId: string) {
+    setEditor({ novelId, chapterId });
+    window.scrollTo(0, 0);
   }
 
-  function openCharacters(id: string) {
+  function openNovelScreen(next: NovelScreen, id: string, showChapters = false) {
+    if (editor && !leaveEditor()) return;
     void focusNovel(id);
-    setScreen("characters");
+    setOutlineAtChapters(showChapters);
+    setScreen(next);
   }
 
-  function openMemory(id: string) {
-    void focusNovel(id);
-    setScreen("memory");
+  function selectTab(id: TabId) {
+    if (id === "memory" && current) {
+      openNovelScreen("memory", current.id);
+      return;
+    }
+    if (editor && !leaveEditor()) return;
+    setTab(id);
+    setScreen("main");
   }
 
   async function removeNovel(id: string) {
@@ -264,69 +287,73 @@ export function Workbench() {
     }
   }
 
-  let body: ReactNode;
+  let detail: ReactNode;
   if (screen === "characters" && opened) {
-    body = (
-      <div className="relative mx-auto flex h-dvh max-h-dvh w-full max-w-[430px] flex-col overflow-hidden bg-[#f7f8fb] text-[#16161e] shadow-[0_0_40px_rgba(22,22,40,0.08)]">
-        <Characters
-          key={opened.id}
-          novelId={opened.id}
-          novelTitle={opened.title}
-          onBack={() => setScreen("main")}
-        />
-      </div>
+    detail = (
+      <Characters
+        key={opened.id}
+        novelId={opened.id}
+        novelTitle={opened.title}
+        onBack={() => setScreen("main")}
+      />
     );
   } else if (screen === "world" && opened) {
-    body = (
-      <div className="relative mx-auto flex h-dvh max-h-dvh w-full max-w-[430px] flex-col overflow-hidden bg-[#f6f7fb] text-[#16161e] shadow-[0_0_40px_rgba(22,22,40,0.08)]">
-        <Worldview
-          key={opened.id}
-          novelId={opened.id}
-          novelTitle={opened.title}
-          premise={opened.premise}
-          onBack={() => setScreen(worldBack)}
-        />
-      </div>
+    detail = (
+      <Worldview
+        key={opened.id}
+        novelId={opened.id}
+        novelTitle={opened.title}
+        premise={opened.premise}
+        onBack={() => setScreen("main")}
+      />
     );
   } else if (screen === "outline" && opened) {
-    body = (
-      <div
-        className={`relative mx-auto flex h-dvh max-h-dvh w-full max-w-[430px] flex-col overflow-hidden bg-[#f6f7fb] text-[#16161e] shadow-[0_0_40px_rgba(22,22,40,0.08)] ${
-          arrival?.id === opened.id ? "novel-page-enter" : ""
-        }`}
-      >
-        <NovelOutline
-          key={opened.id}
-          novelId={opened.id}
-          title={opened.title}
-          writtenWan={opened.writtenWan}
-          targetWan={opened.targetWan}
-          onBack={() => setScreen("main")}
-        />
-      </div>
+    detail = (
+      <NovelOutline
+        key={opened.id}
+        novelId={opened.id}
+        title={opened.title}
+        writtenWan={opened.writtenWan}
+        targetWan={opened.targetWan}
+        initialPane={outlineAtChapters ? "chapters" : "hub"}
+        onOpenChapter={(chapterId) => openEditor(opened.id, chapterId)}
+        onBack={() => setScreen("main")}
+      />
     );
   } else if (screen === "memory" && opened) {
-    body = (
-      <div className="relative mx-auto flex h-dvh max-h-dvh w-full max-w-[430px] flex-col overflow-hidden bg-[#f6f7fb] text-[#16161e] shadow-[0_0_40px_rgba(22,22,40,0.08)]">
-        <NovelMemory
-          key={opened.id}
-          novelId={opened.id}
-          title={opened.title}
-          onBack={() => setScreen("main")}
-        />
-      </div>
+    detail = (
+      <NovelMemory
+        key={opened.id}
+        novelId={opened.id}
+        title={opened.title}
+        onBack={() => setScreen("main")}
+      />
     );
-  } else {
-    body = (
+  }
+
+  const activeTab = editor ? "write" : detail ? (screen === "memory" ? "memory" : undefined) : tab;
+  const workspaceNovel = editor ? catalog.novels.find((novel) => novel.id === editor.novelId) : detail ? opened : current;
+  const writingResume = catalogReady && current ? (
+    <WritingResume
+      key={current.id}
+      novelId={current.id}
+      onOpenChapter={(chapterId) => openEditor(current.id, chapterId)}
+      onOpenChapters={() => openNovelScreen("outline", current.id, true)}
+    />
+  ) : null;
+  const enteringOutline = arrival && screen === "outline" && arrival.id === opened?.id;
+  const body = detail ? (
+    <div className={`relative flex h-dvh flex-col overflow-hidden ${enteringOutline ? "novel-page-enter" : ""}`}>
+      {detail}
+    </div>
+  ) : (
     <div
-      className={`relative mx-auto flex min-h-dvh w-full max-w-[430px] flex-col text-[#16161e] shadow-[0_0_40px_rgba(22,22,40,0.08)] ${
-        novels ? "bg-white" : "bg-[#f6f7fb]"
-      }`}
+      className={`relative flex min-h-dvh flex-col ${novels ? "bg-white lg:bg-transparent" : ""}`}
     >
       {novels ? (
-        <header className="grid grid-cols-[40px_1fr_40px] items-center px-3 pb-1 pt-5">
-          <span />
-          <h1 className="text-center text-[18px] font-semibold tracking-tight">
+        <header className="workbench-gutter grid grid-cols-[40px_1fr_40px] items-center px-3 pb-1 pt-5 lg:grid-cols-[1fr_auto] lg:pb-4 lg:pt-7">
+          <span className="lg:hidden" />
+          <h1 className="text-center text-[18px] font-semibold tracking-tight lg:text-left lg:text-[26px]">
             我的小说
           </h1>
           <button
@@ -338,12 +365,13 @@ export function Workbench() {
           </button>
         </header>
       ) : (
-        <header className="flex items-center gap-2.5 px-4 pb-1 pt-5">
-          <span className="grid size-9 shrink-0 place-items-center rounded-[11px] bg-[#5b40db] text-white shadow-[0_6px_14px_rgba(91,64,219,0.28)]">
+        <header className="workbench-gutter flex items-center gap-2.5 px-4 pb-1 pt-5 lg:pb-4 lg:pt-7">
+          <span className="grid size-9 shrink-0 place-items-center rounded-[11px] bg-[#5b40db] text-white shadow-[0_6px_14px_rgba(91,64,219,0.28)] lg:hidden">
             <IconBookMark className="size-[22px]" />
           </span>
-          <h1 className="min-w-0 flex-1 truncate text-[17px] font-semibold tracking-tight">
-            小说创作工作台
+          <h1 className="min-w-0 flex-1 truncate text-[17px] font-semibold tracking-tight lg:text-[26px]">
+            <span className="lg:hidden">小说创作工作台</span>
+            <span className="hidden lg:inline">{tabs.find((item) => item.id === tab)?.label}</span>
           </h1>
           <button
             type="button"
@@ -363,23 +391,29 @@ export function Workbench() {
         </header>
       )}
 
-      <main className={`flex flex-1 flex-col px-4 ${novels ? "pb-6" : "pb-2"}`}>
+      <main className={`workbench-gutter flex flex-1 flex-col px-4 lg:flex-none lg:pb-8 ${novels ? "pb-6" : "pb-2"}`}>
         {tab === "home" && current ? (
           <HomePanel
             novel={current}
             worldTotal={worldTotal}
             castTotal={castTotal}
             plotTotal={plotTotal}
-            onOpenOutline={() => openOutline(current.id)}
-            onOpenWorld={() => openWorld("main", current.id)}
-            onOpenCharacters={() => openCharacters(current.id)}
-            onOpenMemory={() => openMemory(current.id)}
+            writingResume={writingResume}
+            onOpenOutline={() => openNovelScreen("outline", current.id)}
+            onOpenWorld={() => openNovelScreen("world", current.id)}
+            onOpenCharacters={() => openNovelScreen("characters", current.id)}
+            onOpenMemory={() => openNovelScreen("memory", current.id)}
           />
         ) : null}
         {tab === "novels" ? (
-          <NovelsPanel novels={catalog.novels} onOpenOutline={openOutline} onDelete={removeNovel} />
+          <NovelsPanel novels={catalog.novels} onOpenOutline={(id) => openNovelScreen("outline", id)} onDelete={removeNovel} />
         ) : null}
-        {tab === "write" ? <WritePanel /> : null}
+        {tab === "write" && current ? (
+          <section className="w-full max-w-xl">
+            <PanelTitle title="章节正文" hint={`《${current.title}》`} />
+            {writingResume}
+          </section>
+        ) : null}
         {tab === "memory" ? <MemoryPanel /> : null}
         {tab === "me" ? <MePanel /> : null}
       </main>
@@ -388,64 +422,116 @@ export function Workbench() {
         <button
           type="button"
           aria-label="新建小说"
-          className="absolute bottom-[calc(72px+env(safe-area-inset-bottom))] right-5 z-10 grid size-14 place-items-center rounded-full bg-[#5b40db] text-white shadow-[0_10px_22px_rgba(91,64,219,0.34)] active:bg-[#4e36c4]"
+          className="absolute bottom-[calc(72px+env(safe-area-inset-bottom))] right-5 z-10 flex size-14 items-center justify-center gap-1.5 rounded-full bg-[#5b40db] text-white shadow-[0_10px_22px_rgba(91,64,219,0.34)] active:bg-[#4e36c4] lg:bottom-auto lg:right-[calc(var(--workbench-gutter)+3rem)] lg:top-7 lg:h-10 lg:w-auto lg:rounded-xl lg:px-4 lg:text-sm"
         >
-          <IconPlus className="size-7" />
+          <IconPlus className="size-7 lg:size-4" />
+          <span className="hidden lg:inline">新建小说</span>
         </button>
       ) : null}
 
-      <footer className="sticky bottom-0">
+      <footer className="sticky bottom-0 lg:static">
         {tab === "home" ? (
-          <div className="bg-gradient-to-t from-[#f6f7fb] via-[#f6f7fb] to-transparent px-4 pb-3 pt-2">
+          <div className="workbench-gutter bg-gradient-to-t from-[#f6f7fb] via-[#f6f7fb] to-transparent px-4 pb-3 pt-2 lg:bg-none lg:pb-8 lg:pt-0">
             <button
               type="button"
-              className="flex h-[52px] w-full items-center justify-center gap-1.5 rounded-2xl bg-[#5b40db] text-[16px] font-medium text-white shadow-[0_10px_22px_rgba(91,64,219,0.32)] active:bg-[#4e36c4]"
+              className="flex h-[52px] w-full items-center justify-center gap-1.5 rounded-2xl bg-[#5b40db] text-[16px] font-medium text-white shadow-[0_10px_22px_rgba(91,64,219,0.32)] active:bg-[#4e36c4] lg:ml-auto lg:h-11 lg:w-auto lg:rounded-xl lg:px-5 lg:text-sm"
             >
               <IconPlus className="size-5" />
               新建小说
             </button>
           </div>
         ) : novels ? null : (
-          <div className="h-3 bg-gradient-to-t from-[#f6f7fb] to-transparent" />
+          <div className="h-3 bg-gradient-to-t from-[#f6f7fb] to-transparent lg:hidden" />
         )}
-        <nav
-          aria-label="主导航"
-          className="grid grid-cols-5 border-t border-[#eceef3] bg-white px-1 pb-[max(8px,env(safe-area-inset-bottom))] pt-1.5"
-        >
-          {tabs.map((item) => {
-            const active = tab === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                aria-current={active ? "page" : undefined}
-                onClick={() => {
-                  if (item.id === "memory" && current) {
-                    openMemory(current.id);
-                    return;
-                  }
-                  setTab(item.id);
-                }}
-                className={`flex flex-col items-center gap-0.5 py-1 text-[11px] ${
-                  active ? "text-[#5b40db]" : "text-[#b0b4c0]"
-                }`}
-              >
-                <NavIcon id={item.id} active={active} icon={item.icon} />
-                {item.label}
-              </button>
-            );
-          })}
-        </nav>
+        <WorkbenchNav activeTab={activeTab} onSelect={selectTab} />
       </footer>
     </div>
-    );
-  }
+  );
 
   return (
-    <>
-      {body}
+    <div className="workbench-shell mx-auto flex min-h-dvh w-full max-w-[430px] bg-[#f6f7fb] text-[#16161e] shadow-[0_0_40px_rgba(22,22,40,0.08)] sm:max-w-[760px] lg:max-w-none lg:shadow-none">
+      <aside className="sticky top-0 hidden h-dvh w-56 shrink-0 flex-col overflow-y-auto border-r border-[#e8e8f0] bg-white px-4 py-7 lg:flex xl:w-60">
+        <div className="mb-8 flex items-center gap-2.5 px-2 text-sm font-semibold">
+          <span className="grid size-9 shrink-0 place-items-center rounded-[11px] bg-[#5b40db] text-white">
+            <IconBookMark className="size-[22px]" />
+          </span>
+          小说创作工作台
+        </div>
+        <WorkbenchNav desktop activeTab={activeTab} onSelect={selectTab} />
+        {workspaceNovel ? (
+          <nav className="mt-6 grid gap-1 border-t border-[#eceef3] pt-5" aria-label="小说工作区">
+            <p className="mb-1 truncate px-3 text-xs font-medium text-[#707587]" title={workspaceNovel.title}>
+              {workspaceNovel.title}
+            </p>
+            {novelLinks.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                aria-current={detail && screen === id ? "page" : undefined}
+                onClick={() => openNovelScreen(id, workspaceNovel.id)}
+                className="workbench-sidebar-link"
+              >
+                <Icon className="size-5 shrink-0" />
+                {label}
+              </button>
+            ))}
+          </nav>
+        ) : null}
+      </aside>
+      <div className="min-w-0 flex-1">
+        <div className="mx-auto w-full lg:max-w-[1240px]">
+          {!editor || detail ? <div hidden={Boolean(editor)}>{body}</div> : null}
+          {editor ? (
+            <ManuscriptEditor
+              key={`${editor.novelId}/${editor.chapterId}`}
+              novelId={editor.novelId}
+              chapterId={editor.chapterId}
+              onDirtyChange={setEditorDirty}
+              onChangeChapter={(chapterId) => {
+                if (leaveEditor()) openEditor(editor.novelId, chapterId);
+              }}
+              onBack={leaveEditor}
+            />
+          ) : null}
+        </div>
+      </div>
       {arrival ? <NovelArrival novel={arrival} onDone={() => setArrival(null)} /> : null}
-    </>
+    </div>
+  );
+}
+
+function WorkbenchNav({
+  activeTab,
+  desktop = false,
+  onSelect,
+}: {
+  activeTab?: TabId;
+  desktop?: boolean;
+  onSelect: (tab: TabId) => void;
+}) {
+  return (
+    <nav
+      aria-label="主导航"
+      className={desktop ? "grid gap-1" : "grid grid-cols-5 border-t border-[#eceef3] bg-white px-1 pb-[max(8px,env(safe-area-inset-bottom))] pt-1.5 lg:hidden"}
+    >
+      {tabs.map((item) => {
+        const active = activeTab === item.id;
+        return (
+          <button
+            key={item.id}
+            type="button"
+            aria-current={active ? "page" : undefined}
+            onClick={() => onSelect(item.id)}
+            className={desktop
+              ? "workbench-sidebar-link"
+              : `flex flex-col items-center gap-0.5 py-1 text-[11px] ${active ? "text-[#5b40db]" : "text-[#b0b4c0]"}`}
+          >
+            <NavIcon id={item.id} active={active} icon={item.icon} />
+            {item.label}
+          </button>
+        );
+      })}
+    </nav>
   );
 }
 
@@ -460,7 +546,7 @@ function NovelArrival({ novel, onDone }: { novel: NovelRecord; onDone: () => voi
 
   return (
     <div className="fixed inset-0 z-50 flex justify-center" role="status" aria-live="polite">
-      <div className="novel-arrive-veil flex h-dvh w-full max-w-[430px] flex-col items-center justify-center bg-[radial-gradient(circle_at_50%_40%,#7460ea_0%,#322664_55%,#171326_100%)] text-white">
+      <div className="novel-arrive-veil flex h-dvh w-full max-w-[430px] flex-col items-center justify-center bg-[radial-gradient(circle_at_50%_40%,#7460ea_0%,#322664_55%,#171326_100%)] text-white sm:max-w-[760px] lg:max-w-none">
         <div className="novel-arrive-copy flex flex-col items-center px-8 text-center">
           <p className="text-[12px] font-medium tracking-[0.28em] text-white/70">新书已创建</p>
           <Cover className="mt-6 h-[168px] w-[126px] rounded-[18px] shadow-[0_18px_40px_rgba(0,0,0,0.28)]" />
@@ -500,6 +586,7 @@ function HomePanel({
   worldTotal,
   castTotal,
   plotTotal,
+  writingResume,
   onOpenOutline,
   onOpenWorld,
   onOpenCharacters,
@@ -509,6 +596,7 @@ function HomePanel({
   worldTotal: number | null;
   castTotal: number | null;
   plotTotal: { volumes: number; chapters: number } | null;
+  writingResume: ReactNode;
   onOpenOutline: () => void;
   onOpenWorld: () => void;
   onOpenCharacters: () => void;
@@ -535,9 +623,9 @@ function HomePanel({
     return item;
   });
   return (
-    <div className="flex flex-1 flex-col gap-4 pt-3">
+    <div className="flex flex-1 flex-col gap-4 pt-3 lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start lg:gap-5">
       <NovelCard novel={novel} onOpen={onOpenOutline} />
-      <section aria-label="创作工具" className="grid grid-cols-3 gap-3">
+      <section aria-label="创作工具" className="grid grid-cols-3 gap-3 lg:col-span-2 lg:gap-4">
         {tools.map((item) => (
           <ModuleCard
             key={item.title}
@@ -556,9 +644,12 @@ function HomePanel({
           />
         ))}
       </section>
-      <div className="mt-auto pt-1">
-        <RecentTask novel={novel} />
-      </div>
+      {writingResume ? (
+        <section className="mt-auto pt-1 lg:col-start-2 lg:row-start-1 lg:mt-0 lg:pt-0">
+          <h2 className="mb-2.5 px-0.5 text-[17px] font-semibold tracking-tight">正文创作</h2>
+          {writingResume}
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -569,7 +660,7 @@ function NovelCard({ novel, onOpen }: { novel: NovelRecord; onOpen?: () => void 
   const percentLabel = Number.isInteger(novel.writtenWan) ? String(percent) : percent.toFixed(1);
   const writing = novel.status === "writing";
   return (
-    <article className="relative flex gap-3 rounded-[20px] bg-white p-3.5 text-left shadow-[0_8px_24px_rgba(28,28,48,0.05)]">
+    <article className="relative flex gap-3 rounded-[20px] bg-white p-3.5 text-left shadow-[0_8px_24px_rgba(28,28,48,0.05)] lg:gap-5 lg:p-5">
       {onOpen ? (
         <button
           type="button"
@@ -578,10 +669,10 @@ function NovelCard({ novel, onOpen }: { novel: NovelRecord; onOpen?: () => void 
           aria-label={`打开${novel.title}`}
         />
       ) : null}
-      <Cover className="h-[112px] w-[84px] shrink-0 rounded-[14px]" />
+      <Cover className="h-[112px] w-[84px] shrink-0 rounded-[14px] lg:h-36 lg:w-27" />
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-start justify-between gap-2">
-          <h2 className="pt-0.5 text-[18px] font-semibold leading-none tracking-tight">
+          <h2 className="min-w-0 break-words pt-0.5 text-[18px] font-semibold leading-tight tracking-tight lg:text-[22px]">
             {novel.title}
           </h2>
           <span
@@ -599,6 +690,9 @@ function NovelCard({ novel, onOpen }: { novel: NovelRecord; onOpen?: () => void 
           已写 <span className="font-semibold text-[#2a2c36]">{formatWan(novel.writtenWan)}</span> 万字
           / 目标 {formatWan(novel.targetWan)} 万字
         </p>
+        {novel.premise ? (
+          <p className="mt-2 hidden text-sm leading-5 text-[#666b7a] lg:line-clamp-2">{novel.premise}</p>
+        ) : null}
         <div className="mt-auto flex items-center gap-2 pt-3">
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#e4e5ec]">
             <div
@@ -630,7 +724,7 @@ function ModuleCard({
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-[128px] flex-col items-center justify-center rounded-[18px] bg-white px-1 py-4 text-center shadow-[0_8px_24px_rgba(28,28,48,0.045)] active:bg-[#fafaff]"
+      className="flex min-h-[128px] flex-col items-center justify-center rounded-[18px] bg-white px-1 py-4 text-center shadow-[0_8px_24px_rgba(28,28,48,0.045)] active:bg-[#fafaff] lg:items-start lg:px-5 lg:text-left lg:hover:bg-[#fafaff]"
     >
       <Icon className="size-8 text-[#5b40db]" />
       <span className="mt-2.5 text-[14px] font-medium leading-none text-[#1c1d26]">
@@ -640,53 +734,6 @@ function ModuleCard({
         {subtitle}
       </span>
     </button>
-  );
-}
-
-function RecentTask({ novel }: { novel: NovelRecord }) {
-  return (
-    <section>
-      <div className="mb-2.5 flex items-center justify-between px-0.5">
-        <h2 className="text-[17px] font-semibold tracking-tight">最近任务</h2>
-        <button
-          type="button"
-          className="flex items-center text-[13px] text-[#9aa0ae]"
-        >
-          查看全部
-          <IconChevron className="size-4" />
-        </button>
-      </div>
-      {novel.id === "fanchen-wendao" ? (
-        <TaskCard />
-      ) : (
-        <article className="rounded-[18px] bg-white px-3.5 py-4 text-[13px] text-[#9aa0ae] shadow-[0_8px_24px_rgba(28,28,48,0.045)]">
-          《{novel.title}》还没有章节。书名确认后，可以从大纲开始往下写。
-        </article>
-      )}
-    </section>
-  );
-}
-
-function TaskCard() {
-  return (
-    <article className="flex items-start gap-3 rounded-[18px] bg-white px-3.5 py-3.5 shadow-[0_8px_24px_rgba(28,28,48,0.045)]">
-      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#f0eefd] text-[#5b40db]">
-        <IconPencil className="size-[18px]" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="truncate text-[15px] font-semibold leading-snug">
-            第 186 章：深夜来客
-          </h3>
-          <span className="mt-0.5 shrink-0 rounded-full bg-[#f8f1e7] px-2 py-1 text-[11px] font-medium leading-none text-[#b8916a]">
-            待审核
-          </span>
-        </div>
-        <p className="mt-1 truncate text-[12px] text-[#9aa0ae]">
-          主角发现幕后势力的线索，推动第三卷...
-        </p>
-      </div>
-    </article>
   );
 }
 
@@ -730,7 +777,7 @@ function NovelsPanel({
 
   return (
     <div className="flex flex-1 flex-col pt-2">
-      <div role="tablist" aria-label="小说状态" className="grid grid-cols-3">
+      <div role="tablist" aria-label="小说状态" className="grid grid-cols-3 lg:flex lg:gap-3">
         {novelFilters.map((item) => {
           const active = filter === item.id;
           const count = novels.filter(
@@ -762,7 +809,7 @@ function NovelsPanel({
         })}
       </div>
 
-      <ul className="mt-3 flex flex-col gap-5">
+      <ul className="mt-3 flex flex-col gap-5 md:grid md:grid-cols-2 2xl:grid-cols-3">
         {visible.map((novel) => (
           <NovelRow
             key={novel.id}
@@ -776,10 +823,10 @@ function NovelsPanel({
         ))}
       </ul>
       {pending ? (
-        <div className="absolute inset-0 z-40 flex flex-col justify-end bg-black/30">
-          <div className="rounded-t-3xl bg-white px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-5">
+        <div className="workbench-dialog absolute inset-0 z-40 flex flex-col justify-end bg-black/30">
+          <div className="workbench-dialog-panel rounded-t-3xl bg-white px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-5">
             <h2 className="text-[17px] font-semibold">删除《{pending.title}》</h2>
-            <p className="mt-2 text-[14px] leading-6 text-[#6f7482]">这本书的世界观和人物档案会一起删除。</p>
+            <p className="mt-2 text-[14px] leading-6 text-[#6f7482]">这本书的正文、大纲、世界观、人物档案和小说记忆会一起删除。</p>
             {deleteError ? <p className="mt-2 text-[13px] text-[#d14343]">{deleteError}</p> : null}
             <div className="mt-4 grid grid-cols-2 gap-3">
               <button
@@ -906,15 +953,6 @@ function NovelRow({
         </div>
       </div>
     </li>
-  );
-}
-
-function WritePanel() {
-  return (
-    <div>
-      <PanelTitle title="创作" hint="继续未完成的章节" />
-      <TaskCard />
-    </div>
   );
 }
 

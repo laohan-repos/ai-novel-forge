@@ -81,6 +81,14 @@ export function readNovel(id: string) {
   return readNovels().novels.find((novel) => novel.id === id) ?? null;
 }
 
+export function withNovel<T>(id: string, action: (novel: NovelRecord) => T): T {
+  return withLock(() => {
+    const novel = readUnlocked().novels.find((item) => item.id === id);
+    if (!novel) throw new NovelError("这本小说不在书架上");
+    return action(novel);
+  });
+}
+
 export function openNovel(id: string) {
   return withLock(() => {
     const state = readUnlocked();
@@ -165,6 +173,7 @@ function discardNovelData(novelId: string) {
     join(dataDir, `characters-${novelId}.json`),
     join(dataDir, `plot-${novelId}.json`),
     join(dataDir, `memory-${novelId}.json`),
+    join(dataDir, `manuscript-${novelId}.json`),
   ];
   removeNovelImages(novelId);
   for (const filePath of files) {

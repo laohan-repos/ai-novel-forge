@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { emptyPlot, fanchenPlot, type ChapterPlan, type PlotState, type VolumePlan } from "@/lib/plot/model";
+import { volumeRanges } from "@/lib/plot/operations";
 import { IconBack, IconCheck, IconChevron, IconChevronDown, IconPerson, IconPlus, IconSearch } from "./icons";
 
 type Thread = { id: string; title: string; summary: string; pending?: boolean };
@@ -14,16 +15,20 @@ export function NovelOutline({
   title,
   writtenWan,
   targetWan,
+  initialPane,
+  onOpenChapter,
   onBack,
 }: {
   novelId: string;
   title: string;
   writtenWan: number;
   targetWan: number;
+  initialPane: "hub" | "chapters";
+  onOpenChapter: (id: string) => void;
   onBack: () => void;
 }) {
   const [plot, setPlot] = useState<PlotState>(() => (novelId === "fanchen-wendao" ? fanchenPlot() : emptyPlot()));
-  const [pane, setPane] = useState<Pane>("hub");
+  const [pane, setPane] = useState<Pane>(initialPane);
   const [openId, setOpenId] = useState("");
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
@@ -141,7 +146,7 @@ export function NovelOutline({
 
   return (
     <div className="relative flex h-dvh max-h-dvh flex-col bg-[#f6f7fb]">
-      <header className="flex items-center gap-1 px-2 pt-[max(8px,env(safe-area-inset-top))]">
+      <header className="workbench-header flex shrink-0 items-center gap-1 px-2 pt-[max(8px,env(safe-area-inset-top))]">
         <button
           type="button"
           aria-label="返回"
@@ -191,10 +196,10 @@ export function NovelOutline({
 
       {pane === "hub" ? (
         <>
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 pt-2">
-            <section className="relative h-[132px] overflow-hidden rounded-[20px] shadow-[0_12px_28px_rgba(36,64,96,0.16)]">
+          <div className="workbench-gutter min-h-0 flex-1 overflow-y-auto px-4 pb-3 pt-2">
+            <section className="relative h-[132px] overflow-hidden rounded-[20px] shadow-[0_12px_28px_rgba(36,64,96,0.16)] lg:h-48">
               <OutlineBanner className="absolute inset-0 h-full w-full" />
-              <div className="relative flex h-full flex-col justify-end px-4 pb-3.5 pt-3">
+              <div className="relative flex h-full flex-col justify-end px-4 pb-3.5 pt-3 lg:px-6 lg:pb-5">
                 <span className="w-fit rounded-md bg-white/85 px-2 py-1 text-[11px] font-medium leading-none text-[#3c4654]">
                   {title}
                 </span>
@@ -205,7 +210,7 @@ export function NovelOutline({
               </div>
             </section>
 
-            <div className="mt-3 grid grid-cols-4 gap-2">
+            <div className="mt-3 grid grid-cols-4 gap-2 lg:mt-4 lg:gap-4">
               <StatCard label="分卷" value={volumes.length} icon={<PathStat />} onClick={() => setPane("volumes")} />
               <StatCard label="章节" value={plannedChapters} icon={<BookStat />} onClick={() => setPane("chapters")} />
               <StatCard label="主线" value={mainlines.length} icon={<BranchStat />} onClick={() => setPane("mainlines")} />
@@ -235,9 +240,9 @@ export function NovelOutline({
               </div>
             </article>
 
-            <ul className="mt-2.5 flex flex-col gap-2.5">
+            <ul className="mt-2.5 flex flex-col gap-2.5 md:grid md:grid-cols-2 lg:gap-4">
               {sections.length === 0 ? (
-                <li className="rounded-2xl bg-white px-4 py-8 text-center text-[13px] text-[#9aa0ae]">没有符合条件的大纲。</li>
+                <li className="rounded-2xl bg-white px-4 py-8 text-center text-[13px] text-[#9aa0ae] md:col-span-2">没有符合条件的大纲。</li>
               ) : (
                 sections.map((section) => (
                   <li key={section.id}>
@@ -258,7 +263,7 @@ export function NovelOutline({
               )}
             </ul>
           </div>
-          <div className="grid shrink-0 grid-cols-2 gap-3 bg-[#f6f7fb] px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-2">
+          <div className="workbench-gutter workbench-actions grid shrink-0 grid-cols-2 gap-3 bg-[#f6f7fb] px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-2 lg:pb-5">
             <button
               type="button"
               onClick={optimize}
@@ -278,7 +283,7 @@ export function NovelOutline({
           </div>
         </>
       ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-8 pt-3">
+        <div className="workbench-gutter min-h-0 flex-1 overflow-y-auto px-4 pb-8 pt-3">
           {pane === "volumes" ? <VolumeList volumes={volumes} openId={openId} keyword={keyword} onToggle={setOpenId} onAdd={() => void persist("add_volume", {}).then((result) => result && setToast("已增加一卷"))} /> : null}
           {pane === "mainlines" ? <ThreadList items={mainlines} keyword={keyword} empty="还没有主线。可以新建一条。" /> : null}
           {pane === "branches" ? (
@@ -294,7 +299,14 @@ export function NovelOutline({
           ) : null}
           {pane === "hooks" ? <HookList hooks={hooks} keyword={keyword} /> : null}
           {pane === "chapters" ? (
-            <ChapterList volumes={volumes} chapters={chapters} planned={plannedChapters} written={writtenChapters} />
+            <ChapterList
+              volumes={volumes}
+              chapters={chapters}
+              planned={plannedChapters}
+              written={writtenChapters}
+              keyword={keyword}
+              onOpenChapter={onOpenChapter}
+            />
           ) : null}
           {pane === "detail" ? (
             <DetailList
@@ -396,47 +408,81 @@ function ChapterList({
   chapters,
   planned,
   written,
+  keyword,
+  onOpenChapter,
 }: {
   volumes: VolumePlan[];
   chapters: ChapterPlan[];
   planned: number;
   written: number;
+  keyword: string;
+  onOpenChapter: (id: string) => void;
 }) {
-  let start = 1;
+  if (chapters.length === 0) return <EmptyNote text="还没有章节大纲。保存章纲后，可以从这里打开正文。" />;
+
+  const visible = chapters
+    .filter((chapter) => !keyword || `第${chapter.number}章 ${chapter.title} ${chapter.summary}`.includes(keyword))
+    .sort((a, b) => a.number - b.number);
+  if (visible.length === 0) return <EmptyNote text="没有符合条件的章节。" />;
+
+  const ranges = volumeRanges(volumes);
+  const lastChapter = ranges.at(-1)?.end ?? 0;
+  const unassigned = visible.filter((chapter) => chapter.number < 1 || chapter.number > lastChapter);
+
   return (
     <div>
       <p className="mb-3 px-1 text-[13px] text-[#8e929c]">
         已规划 {planned} 章 · 已完成 {written} 章
       </p>
       <ul className="flex flex-col gap-2.5">
-        {volumes.map((volume) => {
-          const rangeStart = start;
-          const end = rangeStart + volume.total - 1;
-          const label = `第${rangeStart}–${end}章`;
-          start = end + 1;
+        {ranges.map(({ volume, start, end }) => {
+          const items = visible.filter((chapter) => chapter.number >= start && chapter.number <= end);
+          if (items.length === 0) return null;
           return (
             <li key={volume.id} className="rounded-2xl bg-white px-4 py-3 shadow-[0_8px_24px_rgba(28,28,48,0.04)]">
               <div className="flex items-center justify-between gap-3">
                 <p className="min-w-0 truncate text-[15px] font-semibold">{volume.title}</p>
-                <span className="shrink-0 text-[12px] text-[#8e929c]">{label}</span>
+                <span className="shrink-0 text-[12px] text-[#8e929c]">第{start}–{end}章</span>
               </div>
               <p className="mt-1 text-[13px] text-[#8e929c]">
                 {volume.status === "done" ? "已完成" : volume.status === "active" ? "进行中" : "未开始"} · {volume.written}/{volume.total} 章
               </p>
-              {chapters
-                .filter((chapter) => chapter.number >= rangeStart && chapter.number <= end)
-                .map((chapter) => (
-                  <p key={chapter.id} className="mt-1 text-[13px] leading-6 text-[#6f7482]">
-                    第{chapter.number}章 {chapter.title}
-                    {chapter.itemStatus === "pending" ? " · 待确认" : ""}
-                    {chapter.status === "done" ? " · 已完成" : ""}
-                  </p>
-                ))}
+              <ChapterRows chapters={items} onOpenChapter={onOpenChapter} />
             </li>
           );
         })}
+        {unassigned.length > 0 ? (
+          <li className="rounded-2xl bg-white px-4 py-3 shadow-[0_8px_24px_rgba(28,28,48,0.04)]">
+            <p className="text-[15px] font-semibold">未分卷章节</p>
+            <ChapterRows chapters={unassigned} onOpenChapter={onOpenChapter} />
+          </li>
+        ) : null}
       </ul>
     </div>
+  );
+}
+
+function ChapterRows({ chapters, onOpenChapter }: { chapters: ChapterPlan[]; onOpenChapter: (id: string) => void }) {
+  return (
+    <ul className="mt-2 divide-y divide-[#eeedf3]">
+      {chapters.map((chapter) => (
+        <li key={chapter.id}>
+          <button
+            type="button"
+            onClick={() => onOpenChapter(chapter.id)}
+            className="flex min-h-11 w-full items-center gap-2 rounded-lg px-1.5 py-2 text-left hover:bg-[#f7f5fe] focus-visible:outline-2 focus-visible:outline-[#5b40db]"
+          >
+            <span className="min-w-0 grow break-words text-[13px] font-medium leading-5 text-[#353544]">
+              第{chapter.number}章 {chapter.title}
+              {chapter.itemStatus === "pending" ? <span className="text-[#707587]"> · 待确认</span> : null}
+              {chapter.status === "done" ? <span className="text-[#707587]"> · 已完成</span> : null}
+            </span>
+            <span className="shrink-0 text-[12px] font-medium text-[#5b40db]">编辑正文</span>
+            <IconChevron className="size-4 shrink-0 text-[#5b40db]" />
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -596,17 +642,22 @@ function CreateSheet({
   const [name, setName] = useState("");
   const [summary, setSummary] = useState("");
   return (
-    <div className="absolute inset-0 z-30 flex flex-col justify-end bg-black/30">
+    <div className="workbench-dialog absolute inset-0 z-40 flex flex-col justify-end bg-black/30">
       <button type="button" aria-label="关闭新建" className="flex-1" onClick={onClose} />
       <form
-        className="rounded-t-3xl bg-white px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-4"
+        className="workbench-dialog-panel max-h-[82dvh] overflow-y-auto rounded-t-3xl bg-white px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-4"
         onSubmit={(event) => {
           event.preventDefault();
           if (!name.trim()) return;
           onSave(kind, name.trim(), summary.trim() || "尚未填写说明。");
         }}
       >
-        <h2 className="text-[17px] font-semibold">新建大纲</h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-[17px] font-semibold">新建大纲</h2>
+          <button type="button" onClick={onClose} className="hidden rounded-lg px-2 py-1 text-sm text-[#595e70] hover:bg-[#f3f4f8] lg:block">
+            取消
+          </button>
+        </div>
         <label className="mt-3 block text-[12px] text-[#8e929c]">
           类型
           <select

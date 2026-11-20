@@ -239,7 +239,7 @@ export function Characters({
 
   return (
     <div className="relative flex h-dvh max-h-dvh flex-col bg-[#f6f7fb]">
-      <header className="flex items-center gap-1 px-2 pt-[max(8px,env(safe-area-inset-top))]">
+      <header className="workbench-header flex shrink-0 items-center gap-1 px-2 pt-[max(8px,env(safe-area-inset-top))]">
         <button
           type="button"
           aria-label="返回"
@@ -296,7 +296,7 @@ export function Characters({
       </header>
 
       {selected ? (
-        <article className="min-h-0 flex-1 overflow-y-auto px-4 pb-8 pt-3">
+        <article className="workbench-gutter min-h-0 flex-1 overflow-y-auto px-4 pb-8 pt-3">
           <div className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-[0_8px_24px_rgba(28,28,48,0.045)]">
             <CharacterPortrait novelId={novelId} portrait={selected.portrait} imageId={shownImage(selected, openChanges)} className="size-16 shrink-0 rounded-2xl" />
             <div className="min-w-0">
@@ -331,7 +331,7 @@ export function Characters({
           ) : null}
         </article>
       ) : relationsOpen ? (
-        <section className="min-h-0 flex-1 overflow-y-auto px-4 pb-8 pt-3">
+        <section className="workbench-gutter min-h-0 flex-1 overflow-y-auto px-4 pb-8 pt-3">
           <h2 className="px-1 text-[18px] font-semibold">关系网络</h2>
           <ul className="mt-3 flex flex-col gap-2.5">
             {relations.length === 0 ? (
@@ -350,10 +350,10 @@ export function Characters({
         </section>
       ) : (
         <>
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 pt-2">
-            <section className="relative h-[132px] overflow-hidden rounded-[20px] shadow-[0_12px_28px_rgba(36,64,96,0.16)]">
+          <div className="workbench-gutter min-h-0 flex-1 overflow-y-auto px-4 pb-3 pt-2">
+            <section className="relative h-[132px] overflow-hidden rounded-[20px] shadow-[0_12px_28px_rgba(36,64,96,0.16)] lg:h-48">
               <CharacterBanner className="absolute inset-0 h-full w-full" />
-              <div className="relative flex h-full flex-col justify-end px-4 pb-3.5 pt-3">
+              <div className="relative flex h-full flex-col justify-end px-4 pb-3.5 pt-3 lg:px-6 lg:pb-5">
                 <span className="w-fit rounded-md bg-white/85 px-2 py-1 text-[11px] font-medium leading-none text-[#3c4654]">
                   {novelTitle}
                 </span>
@@ -364,7 +364,7 @@ export function Characters({
               </div>
             </section>
 
-            <div className="mt-3 grid grid-cols-4 gap-2">
+            <div className="mt-3 grid grid-cols-4 gap-2 lg:mt-4 lg:gap-4">
               <StatCard label="全部角色" value={archive.characters.length} active={filter === "all"} onClick={() => setFilter("all")} icon={<SearchStat />} />
               <StatCard label="核心人物" value={coreCount} active={filter === "core"} onClick={() => setFilter("core")} icon={<CrownStat />} />
               <StatCard label="重要配角" value={importantCount} active={filter === "important"} onClick={() => setFilter("important")} icon={<PeopleStat />} />
@@ -379,9 +379,9 @@ export function Characters({
               </button>
             </div>
 
-            <ul className="flex flex-col gap-2.5">
+            <ul className="flex flex-col gap-2.5 md:grid md:grid-cols-2 lg:gap-4">
               {visible.length === 0 ? (
-                <li className="rounded-2xl bg-white px-4 py-8 text-center text-[13px] text-[#9aa0ae]">
+                <li className="rounded-2xl bg-white px-4 py-8 text-center text-[13px] text-[#9aa0ae] md:col-span-2">
                   {archive.characters.length === 0 ? "还没有人物。可以新建，或让 AI 生成。" : "没有符合条件的人物。"}
                 </li>
               ) : (
@@ -398,7 +398,7 @@ export function Characters({
                       >
                         <CharacterPortrait novelId={novelId} portrait={character.portrait} imageId={shownImage(character, openChanges)} className="size-[52px] shrink-0 rounded-xl" />
                         <span className="min-w-0 flex-1">
-                          <span className="flex items-center gap-1.5">
+                          <span className="flex flex-wrap items-center gap-1.5">
                             <span className="truncate text-[16px] font-semibold leading-none text-[#1c1e28]">{character.name}</span>
                             <RoleBadge role={character.role} />
                             {character.status === "pending" || openChanges.some((change) => change.name === character.name) ? <PendingPill /> : null}
@@ -416,7 +416,7 @@ export function Characters({
               )}
             </ul>
           </div>
-          <div className="grid shrink-0 grid-cols-2 gap-3 bg-[#f6f7fb] px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-2">
+          <div className="workbench-gutter workbench-actions grid shrink-0 grid-cols-2 gap-3 bg-[#f6f7fb] px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-2 lg:pb-5">
             <button
               type="button"
               onClick={() => setCreating(true)}
@@ -490,10 +490,10 @@ function CreateSheet({
   const [error, setError] = useState("");
 
   return (
-    <div className="absolute inset-0 z-30 flex flex-col justify-end bg-black/30">
+    <div className="workbench-dialog absolute inset-0 z-40 flex flex-col justify-end bg-black/30">
       <button type="button" aria-label="关闭新建" className="flex-1" onClick={onClose} />
       <form
-        className="max-h-[82dvh] overflow-y-auto rounded-t-3xl bg-white px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-4"
+        className="workbench-dialog-panel max-h-[82dvh] overflow-y-auto rounded-t-3xl bg-white px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-4"
         onSubmit={(event) => {
           event.preventDefault();
           if (saving) return;
@@ -510,7 +510,12 @@ function CreateSheet({
           })();
         }}
       >
-        <h2 className="text-[17px] font-semibold">新建人物</h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-[17px] font-semibold">新建人物</h2>
+          <button type="button" onClick={onClose} className="hidden rounded-lg px-2 py-1 text-sm text-[#595e70] hover:bg-[#f3f4f8] lg:block">
+            取消
+          </button>
+        </div>
         <label className="mt-3 block text-[12px] text-[#8e929c]">
           姓名
           <input

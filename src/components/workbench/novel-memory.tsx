@@ -234,7 +234,7 @@ export function NovelMemory({
 
   return (
     <div className="relative flex h-dvh max-h-dvh flex-col bg-[#f6f7fb]">
-      <header className="flex items-center gap-1 px-2 pt-[max(8px,env(safe-area-inset-top))]">
+      <header className="workbench-header flex shrink-0 items-center gap-1 px-2 pt-[max(8px,env(safe-area-inset-top))]">
         <button
           type="button"
           aria-label="返回"
@@ -272,7 +272,7 @@ export function NovelMemory({
         )}
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6 pt-2">
+      <div className="workbench-gutter min-h-0 flex-1 overflow-y-auto px-4 pb-6 pt-2">
         {!ready ? <p className="px-1 py-8 text-center text-[13px] text-[#8e929c]">正在整理这本小说的记忆…</p> : null}
         {ready && pane === "hub" ? (
           <Hub
@@ -533,87 +533,93 @@ function Hub({
   ];
   return (
     <>
-      <section className="relative overflow-hidden rounded-[22px] bg-[radial-gradient(circle_at_80%_20%,#8ec7ff_0%,transparent_32%),linear-gradient(160deg,#16324d_0%,#24506a_48%,#1a3344_100%)] px-4 py-4 text-white shadow-[0_12px_28px_rgba(22,40,64,0.18)]">
+      <section className="relative overflow-hidden rounded-[22px] bg-[radial-gradient(circle_at_80%_20%,#8ec7ff_0%,transparent_32%),linear-gradient(160deg,#16324d_0%,#24506a_48%,#1a3344_100%)] px-4 py-4 text-white shadow-[0_12px_28px_rgba(22,40,64,0.18)] lg:px-6 lg:py-6">
         <span className="rounded-md bg-white/85 px-2 py-1 text-[11px] font-medium text-[#314255]">{title}</span>
         <div className="mt-3 flex items-end justify-between gap-3">
           <div>
             <h2 className="text-[28px] font-bold leading-none">小说记忆</h2>
-            <p className="mt-2 max-w-[16em] text-[12px] leading-relaxed text-white/80">已记录创作过程中的事件、人物经历、线索与关键信息</p>
+            <p className="mt-2 max-w-[16em] text-[12px] leading-relaxed text-white/80 lg:max-w-none">已记录创作过程中的事件、人物经历、线索与关键信息</p>
           </div>
           <span className="grid size-14 place-items-center rounded-full bg-white/15">
             <IconMemory className="size-7" />
           </span>
         </div>
       </section>
-      <div className="mt-3 grid grid-cols-4 gap-2">
+      <div className="mt-3 grid grid-cols-4 gap-2 lg:mt-4 lg:gap-4">
         <Stat value={memory.chapters.length} label="已记录章节" />
         <Stat value={items} label="记忆条目" />
         <Stat value={memory.events.length} label="关键事件" />
         <Stat value={memory.pending} label="待核对" />
       </div>
-      <h2 className="mb-2.5 mt-5 text-[16px] font-semibold">记忆分类</h2>
-      <div className="grid grid-cols-3 gap-2.5">
-        {tiles.map((tile) => (
+      <div className="lg:mt-6 lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-6">
+        <section>
+          <h2 className="mb-2.5 mt-5 text-[16px] font-semibold lg:mt-0">记忆分类</h2>
+          <div className="grid grid-cols-3 gap-2.5">
+            {tiles.map((tile) => (
+              <button
+                key={tile.label}
+                type="button"
+                onClick={() => (tile.onClick ? tile.onClick() : onOpen(tile.pane))}
+                className="rounded-2xl bg-white px-2 py-3.5 text-center shadow-[0_8px_24px_rgba(28,28,48,0.04)]"
+              >
+                <span className="mx-auto grid size-9 place-items-center rounded-xl bg-[#f3efff] text-[#6a48d6]">
+                  <IconMemory className="size-4" />
+                </span>
+                <span className="mt-2 block text-[13px] font-medium">{tile.label}</span>
+                <span className="mt-1 block text-[11px] text-[#a0a4b0]">{tile.count}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+        <section>
           <button
-            key={tile.label}
             type="button"
-            onClick={() => (tile.onClick ? tile.onClick() : onOpen(tile.pane))}
-            className="rounded-2xl bg-white px-2 py-3.5 text-center shadow-[0_8px_24px_rgba(28,28,48,0.04)]"
+            onClick={() => onOpen("timeline")}
+            className="mt-3 flex w-full items-center justify-between rounded-2xl lg:mt-0 bg-white px-4 py-3.5 text-left shadow-[0_8px_24px_rgba(28,28,48,0.04)]"
           >
-            <span className="mx-auto grid size-9 place-items-center rounded-xl bg-[#f3efff] text-[#6a48d6]">
-              <IconMemory className="size-4" />
+            <span>
+              <span className="block text-[15px] font-semibold">剧情时间线</span>
+              <span className="mt-0.5 block text-[12px] text-[#8e929c]">{memory.volumes.length} 卷阶段</span>
             </span>
-            <span className="mt-2 block text-[13px] font-medium">{tile.label}</span>
-            <span className="mt-1 block text-[11px] text-[#a0a4b0]">{tile.count}</span>
+            <IconChevron className="size-4 text-[#c5c9d4]" />
           </button>
-        ))}
+          <div className="mb-2.5 mt-5 flex items-center justify-between">
+            <h2 className="text-[16px] font-semibold">最近记忆</h2>
+            <button type="button" onClick={onChapter} className="text-[13px] text-[#9aa0ae]">
+              查看全部
+            </button>
+          </div>
+          {latest ? (
+            <button
+              type="button"
+              onClick={onChapter}
+              className="flex w-full gap-3 rounded-2xl bg-white p-3 text-left shadow-[0_8px_24px_rgba(28,28,48,0.04)]"
+            >
+              <Thumb tone={latest.number % tones.length} label={`第${latest.number}章`} />
+              <span>
+                <span className="block text-[15px] font-semibold">{latest.title}</span>
+                <span className="mt-1 line-clamp-2 block text-[13px] leading-relaxed text-[#6f7482]">{latest.summary}</span>
+                <span className="mt-1 block text-[12px] text-[#9aa0ae]">第{latest.number}章 · {latest.volume}</span>
+              </span>
+            </button>
+          ) : (
+            <Empty text="写下章节大纲后，这里会出现最近一条记忆。" />
+          )}
+          <div className="mt-4 grid grid-cols-2 gap-2.5">
+            <button type="button" onClick={() => onOpen("health")} className="flex h-12 items-center justify-center gap-1.5 rounded-2xl bg-white text-[14px] font-medium shadow-[0_8px_24px_rgba(28,28,48,0.04)]">
+              <IconShield className="size-4 text-[#5b40db]" />
+              记忆健康检查
+            </button>
+            <button type="button" onClick={() => onOpen("search")} className="flex h-12 items-center justify-center gap-1.5 rounded-2xl bg-[#5b40db] text-[14px] font-medium text-white">
+              <IconSearch className="size-4" />
+              智能检索
+            </button>
+          </div>
+          <button type="button" onClick={() => onOpen("clues")} className="mt-2.5 w-full py-2 text-center text-[13px] text-[#8e929c]">
+            线索与伏笔 · {memory.clues.length} 条
+          </button>
+        </section>
       </div>
-      <button
-        type="button"
-        onClick={() => onOpen("timeline")}
-        className="mt-3 flex w-full items-center justify-between rounded-2xl bg-white px-4 py-3.5 text-left shadow-[0_8px_24px_rgba(28,28,48,0.04)]"
-      >
-        <span>
-          <span className="block text-[15px] font-semibold">剧情时间线</span>
-          <span className="mt-0.5 block text-[12px] text-[#8e929c]">{memory.volumes.length} 卷阶段</span>
-        </span>
-        <IconChevron className="size-4 text-[#c5c9d4]" />
-      </button>
-      <div className="mb-2.5 mt-5 flex items-center justify-between">
-        <h2 className="text-[16px] font-semibold">最近记忆</h2>
-        <button type="button" onClick={onChapter} className="text-[13px] text-[#9aa0ae]">
-          查看全部
-        </button>
-      </div>
-      {latest ? (
-        <button
-          type="button"
-          onClick={onChapter}
-          className="flex w-full gap-3 rounded-2xl bg-white p-3 text-left shadow-[0_8px_24px_rgba(28,28,48,0.04)]"
-        >
-          <Thumb tone={latest.number % tones.length} label={`第${latest.number}章`} />
-          <span>
-            <span className="block text-[15px] font-semibold">{latest.title}</span>
-            <span className="mt-1 line-clamp-2 block text-[13px] leading-relaxed text-[#6f7482]">{latest.summary}</span>
-            <span className="mt-1 block text-[12px] text-[#9aa0ae]">第{latest.number}章 · {latest.volume}</span>
-          </span>
-        </button>
-      ) : (
-        <Empty text="写下章节大纲后，这里会出现最近一条记忆。" />
-      )}
-      <div className="mt-4 grid grid-cols-2 gap-2.5">
-        <button type="button" onClick={() => onOpen("health")} className="flex h-12 items-center justify-center gap-1.5 rounded-2xl bg-white text-[14px] font-medium shadow-[0_8px_24px_rgba(28,28,48,0.04)]">
-          <IconShield className="size-4 text-[#5b40db]" />
-          记忆健康检查
-        </button>
-        <button type="button" onClick={() => onOpen("search")} className="flex h-12 items-center justify-center gap-1.5 rounded-2xl bg-[#5b40db] text-[14px] font-medium text-white">
-          <IconSearch className="size-4" />
-          智能检索
-        </button>
-      </div>
-      <button type="button" onClick={() => onOpen("clues")} className="mt-2.5 w-full py-2 text-center text-[13px] text-[#8e929c]">
-        线索与伏笔 · {memory.clues.length} 条
-      </button>
     </>
   );
 }

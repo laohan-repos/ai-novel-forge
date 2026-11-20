@@ -274,7 +274,7 @@ export function Worldview({
     <div className="relative flex h-full min-h-0 flex-1 flex-col">
       <header className="sticky top-0 z-30 bg-[#f6f7fb] pb-1">
         {view.kind === "search" ? (
-          <div className="flex items-center gap-1 px-2 pt-[max(10px,env(safe-area-inset-top))]">
+          <div className="workbench-header flex items-center gap-1 px-2 pt-[max(10px,env(safe-area-inset-top))]">
             <button
               type="button"
               onClick={pop}
@@ -293,7 +293,7 @@ export function Worldview({
             />
           </div>
         ) : (
-          <div className="grid grid-cols-[5rem_minmax(0,1fr)_5rem] items-center px-1.5 pt-[max(10px,env(safe-area-inset-top))]">
+          <div className="workbench-header grid grid-cols-[5rem_minmax(0,1fr)_5rem] items-center px-1.5 pt-[max(10px,env(safe-area-inset-top))] lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:gap-1">
             <button
               type="button"
               onClick={pop}
@@ -302,7 +302,7 @@ export function Worldview({
             >
               <IconBack className="size-[22px]" />
             </button>
-            <h1 className="truncate text-center text-[17px] font-semibold tracking-tight">
+            <h1 className="truncate text-center text-[17px] font-semibold tracking-tight lg:text-left">
               {viewTitle(view, entries)}
             </h1>
             <div className="flex items-center justify-end justify-self-end">
@@ -366,7 +366,7 @@ export function Worldview({
         ) : null}
       </header>
 
-      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-3 pt-2">
+      <main className="workbench-gutter flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-3 pt-2">
         {view.kind === "home" ? (
           <HomeView
             novelTitle={novelTitle}
@@ -416,8 +416,8 @@ export function Worldview({
       </main>
 
       {view.kind === "home" || view.kind === "module" || view.kind === "filter" ? (
-        <div className="shrink-0 bg-[#f6f7fb] px-4 pb-[max(14px,env(safe-area-inset-bottom))] pt-1">
-          <div className="grid grid-cols-2 gap-3">
+        <div className="workbench-gutter shrink-0 bg-[#f6f7fb] px-4 pb-[max(14px,env(safe-area-inset-bottom))] pt-1 lg:pb-5">
+          <div className="workbench-actions grid grid-cols-2 gap-3">
             <button
               type="button"
               onClick={generate}
@@ -440,11 +440,11 @@ export function Worldview({
       ) : null}
 
       {view.kind === "sort" ? (
-        <div className="shrink-0 bg-[#f6f7fb] px-4 pb-[max(14px,env(safe-area-inset-bottom))] pt-1">
+        <div className="workbench-gutter shrink-0 bg-[#f6f7fb] px-4 pb-[max(14px,env(safe-area-inset-bottom))] pt-1 lg:pb-5">
           <button
             type="button"
             onClick={pop}
-            className="flex h-[50px] w-full items-center justify-center rounded-2xl bg-[#5b40db] text-[15px] font-medium text-white active:bg-[#4e36c4]"
+            className="flex h-[50px] w-full items-center justify-center rounded-2xl bg-[#5b40db] text-[15px] font-medium text-white active:bg-[#4e36c4] lg:ml-auto lg:w-36"
           >
             完成
           </button>
@@ -552,16 +552,16 @@ function HomeView({
 
   return (
     <div className="flex flex-col gap-3">
-      <section className="relative h-[158px] overflow-hidden rounded-[22px] shadow-[0_12px_28px_rgba(36,64,96,0.16)]">
+      <section className="relative h-[158px] overflow-hidden rounded-[22px] shadow-[0_12px_28px_rgba(36,64,96,0.16)] lg:h-52">
         <WorldLandscape className="absolute inset-0 h-full w-full" />
-        <div className="relative flex h-full flex-col px-4 pb-3.5 pt-3.5">
+        <div className="relative flex h-full flex-col px-4 pb-3.5 pt-3.5 lg:p-6">
           <span className="w-fit rounded-md bg-[#1b2430]/50 px-2 py-1 text-[11px] leading-none text-white backdrop-blur-[2px]">
             {novelTitle}
           </span>
           <h2 className="mt-2.5 text-[26px] font-bold leading-none tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]">
             {worldName}
           </h2>
-          <p className="mt-2 line-clamp-2 max-w-[17em] text-[13px] leading-[1.45] text-white/95 drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]">
+          <p className="mt-2 line-clamp-2 max-w-[17em] text-[13px] leading-[1.45] text-white/95 drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)] lg:max-w-[40em]">
             {worldSummary}
           </p>
           <button
@@ -575,7 +575,7 @@ function HomeView({
         </div>
       </section>
 
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-3 gap-2.5 lg:gap-4">
         {stats.map((item) => {
           const Icon = item.icon;
           return (
@@ -607,7 +607,7 @@ function HomeView({
             <IconChevron className="size-4" />
           </button>
         </div>
-        <div className="grid grid-cols-4 gap-2.5">
+        <div className="grid grid-cols-4 gap-2.5 lg:gap-4">
           {order.map((id) => {
             const meta = moduleMeta.find((item) => item.id === id);
             if (!meta) return null;
@@ -860,15 +860,15 @@ function SheetFrame({
 }) {
   return (
     <div className="fixed inset-0 z-40 flex justify-center">
-      <div className="relative flex h-full w-full max-w-[430px] flex-col justify-end">
+      <div className="workbench-dialog relative flex h-full w-full max-w-[430px] flex-col justify-end sm:max-w-[760px] lg:max-w-none">
         <button
           type="button"
           aria-label="关闭"
           className="absolute inset-0 bg-[#12141c]/40"
           onClick={onClose}
         />
-        <div className="relative rounded-t-[24px] bg-white px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-3 shadow-[0_-8px_30px_rgba(0,0,0,0.08)]">
-          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#e4e6ee]" />
+        <div className="workbench-dialog-panel relative max-h-[82dvh] overflow-y-auto rounded-t-[24px] bg-white px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-3 shadow-[0_-8px_30px_rgba(0,0,0,0.08)]">
+          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#e4e6ee] lg:hidden" />
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-[17px] font-semibold">{title}</h2>
             <button type="button" onClick={onClose} className="text-[14px] text-[#8e929c]">
