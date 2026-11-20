@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "novel-worldview": {
+      "command": "node",
+      "args": ["mcp/start.mjs"]
+    }
+  }
+}

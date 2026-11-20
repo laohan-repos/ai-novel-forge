@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+:root {
+  --background: #e6e8f0;
+  --foreground: #14141c;
+  --surface: #f6f7fb;
+  --brand: #5b40db;
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-brand: var(--brand);
+  --font-sans: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC",
+    "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+@keyframes novel-arrive-veil {
+  0% {
+    opacity: 0;
+  }
+  14% {
+    opacity: 1;
+  }
+  76% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes novel-arrive-copy {
+  0% {
+    opacity: 0;
+    transform: translateY(26px) scale(0.94);
+  }
+  24% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-28px) scale(1.04);
+  }
+}
+
+@keyframes novel-page-enter {
+  from {
+    opacity: 0.35;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.novel-arrive-veil {
+  animation: novel-arrive-veil 1.7s ease forwards;
+}
+
+.novel-arrive-copy {
+  animation: novel-arrive-copy 1.7s ease forwards;
+}
+
+.novel-page-enter {
+  animation: novel-page-enter 0.65s ease 0.9s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .novel-arrive-veil,
+  .novel-arrive-copy,
+  .novel-page-enter {
+    animation: none;
+  }
+}
